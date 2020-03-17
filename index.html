@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <style>
+            canvas {
+                border:1px solid #d3d3d3;
+                background-color: #f1f1f1;
+            }
+        </style>
+    </head>
+    <body onload=startGame()>
+        <audio id="soundtrack" controls>
+            <source src="tenerife_soundtrack.mp3" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio><br>
+        <audio id="pop" controls>
+            <source src="pop.m4a" type="audio/mpeg">
+            Your browser does not support the audio element.
+        </audio><br>
+        <script>
+            var music = document.getElementById("soundtrack");
+            var pop = document.getElementById("pop");
+
+            var car;
+            var positions = [220, 300, 390];
+            var buttons = [false, false]; //up, down pressed last frame
+            var cacti;
+            var gapPosition;
+            var score;
+            var scoreText;
+            var speed;
+
+            function showStory() {
+
+                var image = new Image();
+                ctx = myGameArea.context;
+
+                switch (myGameArea.storyNr) {
+                    case 0:
+                        image.src = "story1.png";
+                        break;
+                    case 1:
+                        image.src = "story2.png";
+                        break;
+                    case 2:
+                        image.src = "story3.png";
+                        break;
+                    default:
+                        return;
+                }
+
+                if (myGameArea.frameNo < 100) {
+                    ctx.drawImage(image, 0, 0);
+                } else {
+                    myGameArea.frameNo = 0;
+                    myGameArea.clear();
+                    myGameArea.storyNr++;
+
+                }
+
+            }
+
+            function startGame() {
+                cacti = [];
+                car = new component(90, 90, "car.png", "car2.png", 60, positions[2]);
+                score = 0;
+                scoreText = new textComponent();
+                myBackground = new component(800, 500, "tenerife_background.png", "tenerife_background.png", 0, 0);
+                myGameArea.start();
+                music.loop = true;
+                music.controls = false;
+                music.play();
+                pop.controls = false;
+            }
+
+            var myGameArea = {
+                storyNr: 0,
+                canvas: document.createElement("canvas"),
+                start: function () {
+                    this.canvas.width = 800;
+                    this.canvas.height = 500;
+                    this.context = this.canvas.getContext("2d");
+                    document.body.insertBefore(this.canvas, document.body.childNodes[0]);
+                    this.frameNo = 0;
+                    this.interval = setInterval(updateGameArea, 70);
+                    window.addEventListener('keydown', function (e) {
+                        myGameArea.keys = (myGameArea.keys || []);
+                        myGameArea.keys[e.keyCode] = true;
+                    });
+                    window.addEventListener('keyup', function (e) {
+                        myGameArea.keys[e.keyCode] = false;
+                    });
+                },
+                clear: function () {
+                    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                },
+                stop: function () {
+                    clearInterval(this.interval);
+                }
+            };
+
+            function component(width, height, file, file2, x, y) {
+                this.image = new Image();
+                this.width = width;
+                this.height = height;
+                this.posY = 2;
+                this.x = x;
+                this.y = y;
+                this.update = function () {
+                    if (myGameArea.frameNo % 10 < 5) {
+                        this.image.src = file;
+                    } else
+                        this.image.src = file2;
+                    ctx = myGameArea.context;
+                    ctx.drawImage(this.image,
+                            this.x,
+                            this.y,
+                            this.width, this.height);
+                };
+            }
+            function cactusObject(x, y) {
+                this.image = new Image();
+                this.width = 70;
+                this.height = 70;
+                this.speed = 10;
+                this.x = x;
+                this.y = y;
+                this.countedInScore = false;
+                this.update = function () {
+                    if (this.countedInScore !== true) {
+                        if (myGameArea.frameNo % 10 < 5) {
+                            this.image.src = "cactus.png";
+                        } else
+                            this.image.src = "cactus2.png";
+                    } else
+                        this.image.src = "cactus_sad.png";
+
+                    if (this.countedInScore === false && this.x < car.x + car.width) {
+                        score += 1;
+                        this.countedInScore = true;
+                    }
+
+                    ctx = myGameArea.context;
+                    ctx.drawImage(this.image,
+                            this.x,
+                            this.y,
+                            this.width, this.height);
+                };
+                this.newPos = function () {
+                    this.x -= 10;
+                };
+
+                this.crashWith = function (otherobj) {
+                    var myleft = this.x;
+                    var myright = myleft + (this.width - 10);
+                    var mytop = this.y + 5;
+                    var mybottom = mytop + (this.height - 10);
+                    var otherleft = otherobj.x + 30;
+                    var otherright = otherleft + (otherobj.width) - 15;
+                    var othertop = otherobj.y + 10;
+                    var otherbottom = othertop + (otherobj.height) - 20;
+                    ctx = myGameArea.context;
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.fillRect(myleft, mytop, myright - myleft, mybottom - mytop);
+
+                    var crash = true;
+                    if ((mybottom < othertop) ||
+                            (mytop > otherbottom) ||
+                            (myright < otherleft) ||
+                            (myleft > otherright)) {
+                        crash = false;
+                    }
+                    return crash;
+                };
+            }
+
+            function textComponent() {
+                this.x = 550;
+                this.y = 40;
+                this.update = function () {
+                    ctx = myGameArea.context;
+                    ctx.font = "30px Arial";
+                    ctx.fillStyle = "yellow";
+                    ctx.fillText("Score: " + score, this.x, this.y);
+                };
+            }
+
+
+            function updateGameArea() {
+                myGameArea.frameNo++;
+                if (myGameArea.storyNr < 3) {
+                    showStory();
+                    car.update();
+                } else {
+                    if (cacti.some((cactus) => cactus.crashWith(car))) {
+                        music.loop = false;
+                        music.autoplay = false;
+                        music.paused = true;
+                        music.load();
+
+                        pop.autoplay = true;
+                        pop.load();
+                        car_popped = new component(car.width, car.height, "car_pop.png", "car_pop.png", car.x, car.y);
+                        setTimeout(()=>car_popped.update(),700);
+                        setTimeout(()=>myGameArea.stop(),100);
+                    } else {
+                        myGameArea.clear();
+                        myBackground.update();
+                        if (myGameArea.keys && myGameArea.keys[38] && buttons[1] === false) {
+                            moveup();
+                            buttons[1] = true;
+                        } else
+                            buttons[1] = false;
+                        if (myGameArea.keys && myGameArea.keys[40] && buttons[0] === false) {
+                            movedown();
+                            buttons[0] = true;
+                        } else
+                            buttons[0] = false;
+                        car.update();
+                        if (myGameArea.frameNo % 20 === 0) {
+                            gapPosition = Math.floor(Math.random() * 3);
+                        }
+                        updateCacti();
+                        scoreText.update();
+                    }
+                }
+            }
+
+            function updateCacti() {
+                if (myGameArea.frameNo % 20 === 0) {
+                    if (gapPosition !== 0) {
+                        cactus0 = new cactusObject(750, positions[0]);
+                        cacti.push(cactus0);
+                    }
+                    if (gapPosition !== 1) {
+                        cactus1 = new cactusObject(750, positions[1]);
+                        cacti.push(cactus1);
+                    }
+                    if (gapPosition !== 2) {
+                        cactus2 = new cactusObject(750, positions[2] + 20);
+                        cacti.push(cactus2);
+                    }
+                }
+
+                //delete cacti that are out of frame anyways
+                if (cacti.length > 10) {
+                    cacti.shift();
+                    cacti.shift();
+                }
+
+                //update all cacti
+                cacti.forEach((cactus) => {
+                    cactus.newPos();
+                    cactus.update();
+                });
+            }
+
+            function moveup() {
+                if (car.posY === 2)
+                    car.posY = 1;
+                else
+                    car.posY = 0;
+                car.y = positions[car.posY];
+            }
+
+            function movedown() {
+                if (car.posY === 0)
+                    car.posY = 1;
+                else
+                    car.posY = 2;
+                car.y = positions[car.posY];
+            }
+
+        </script>
+    </body>
+</html>
